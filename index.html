@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>yOura Insights Dashboard</title>
+
+<!-- PWA: Web App Manifest -->
+<link rel="manifest" href="./manifest.json">
+
+<!-- PWA: iOS / Safari specific -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="yOura Insights">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+
+<!-- PWA: Theme & description -->
+<meta name="theme-color" content="#07070f">
+<meta name="description" content="yOura Insights — Personal Oura Ring health dashboard">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #07070f;
+  --surface: #0f0f1e;
+  --surface2: #171728;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #eeeeff;
+  --text2: rgba(220,220,255,0.55);
+  --text3: rgba(220,220,255,0.3);
+  --readiness: #3dffc4;
+  --readiness-dim: rgba(61,255,196,0.15);
+  --sleep: #a48bff;
+  --sleep-dim: rgba(164,139,255,0.15);
+  --activity: #ff8c42;
+  --activity-dim: rgba(255,140,66,0.15);
+  --optimal: #3dffc4;
+  --good: #5ba9ff;
+  --fair: #ffd93d;
+  --attention: #ff5c5c;
+  --stress: #ff5f7e;
+  --stress-dim: rgba(255,95,126,0.15);
+  --cardio: #4db8ff;
+  --cardio-dim: rgba(77,184,255,0.15);
+  --radius: 20px;
+  --radius-sm: 12px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  overflow-x: hidden;
+  /* Respect iPhone notch / Dynamic Island / home bar */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* ── UPLOAD SCREEN ── */
+#upload-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: radial-gradient(ellipse 70% 60% at 50% 0%, rgba(61,255,196,0.07) 0%, transparent 70%),
+              radial-gradient(ellipse 50% 40% at 80% 100%, rgba(164,139,255,0.06) 0%, transparent 60%), var(--bg);
+}
+
+.upload-logo {
+  margin-bottom: 32px;
+  animation: pulse 3s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.04); opacity: 0.85; }
+}
+
+.upload-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 2.4rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #ffffff 30%, var(--readiness) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.upload-subtitle {
+  color: var(--text2);
+  font-size: 1rem;
+  margin-bottom: 48px;
+  text-align: center;
+  max-width: 360px;
+  line-height: 1.6;
+}
+
+.upload-zone {
+  width: 100%;
+  max-width: 540px;
+  border: 2px dashed var(--border2);
+  border-radius: var(--radius);
+  padding: 40px 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: var(--surface);
+  position: relative;
+}
+
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--readiness);
+  background: rgba(61,255,196,0.04);
+  box-shadow: 0 0 40px rgba(61,255,196,0.08);
+}
+
+.upload-zone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+.upload-icon { margin-bottom: 16px; color: var(--readiness); }
+
+.upload-zone h3 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.upload-zone p {
+  color: var(--text2);
+  font-size: 0.875rem;
+  margin-bottom: 24px;
+}
+
+.file-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface2);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  color: var(--text2);
+  transition: all 0.2s;
+}
+
+.file-item.loaded {
+  color: var(--readiness);
+  background: rgba(61,255,196,0.08);
+}
+
+.file-item .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--text3); flex-shrink: 0;
+}
+.file-item.loaded .dot { background: var(--readiness); }
+
+.btn-primary {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 14px 40px;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--readiness), #4db8ff);
+  color: #07070f;
+  letter-spacing: 0.01em;
+  transition: all 0.25s;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.btn-primary.ready {
+  opacity: 1;
+  pointer-events: auto;
+  box-shadow: 0 8px 32px rgba(61,255,196,0.25);
+}
+
+.btn-primary.ready:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(61,255,196,0.35);
+}
+
+.upload-note {
+  margin-top: 20px;
+  font-size: 0.78rem;
+  color: var(--text3);
+  text-align: center;
+}
+
+/* ── DASHBOARD ── */
+#dashboard {
+  display: none;
+  min-height: 100vh;
+  background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(61,255,196,0.06) 0%, transparent 60%), var(--bg);
+}
+
+.dash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 32px 0;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.dash-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.dash-logo span { color: var(--readiness); }
+
+.dash-date-full {
+  font-size: 0.85rem;
+  color: var(--text2);
+  font-weight: 400;
+}
+
+/* Date Nav */
+.date-nav-wrap {
+  max-width: 900px;
+  margin: 28px auto 0;
+  padding: 0 24px;
+}
+
+.date-nav {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 4px 0;
+}
+
+.date-nav::-webkit-scrollbar { display: none; }
+
+.date-pill {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  min-width: 72px;
+}
+
+.date-pill:hover { border-color: var(--border2); background: var(--surface2); }
+
+.date-pill.active {
+  border-color: var(--readiness);
+  background: var(--readiness-dim);
+}
+
+.date-pill .pill-dow {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.date-pill.active .pill-dow { color: var(--readiness); }
+
+.date-pill .pill-day {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.date-pill .pill-dots {
+  display: flex;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.date-pill .pill-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  opacity: 0.5;
+}
+
+/* Score rings section */
+.score-section {
+  max-width: 900px;
+  margin: 28px auto 0;
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.score-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 20px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  transition: border-color 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.score-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.score-card.readiness::before { background: var(--readiness); }
+.score-card.sleep::before { background: var(--sleep); }
+.score-card.activity::before { background: var(--activity); }
+
+.score-card-label {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text2);
+  align-self: flex-start;
+}
+
+.score-card.readiness .score-card-label { color: var(--readiness); }
+.score-card.sleep .score-card-label { color: var(--sleep); }
+.score-card.activity .score-card-label { color: var(--activity); }
+
+.ring-wrap { position: relative; }
+
+.ring-status {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text2);
+}
+
+/* Mini trend bars */
+.trend-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 32px;
+  width: 100%;
+}
+
+.trend-bar-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+  cursor: pointer;
+}
+
+.trend-bar {
+  width: 100%;
+  min-height: 3px;
+  border-radius: 3px 3px 0 0;
+  transition: opacity 0.2s;
+}
+
+.trend-bar-wrap:hover .trend-bar { opacity: 0.8; }
+.trend-bar-wrap.active .trend-bar { opacity: 1; }
+.trend-bar-wrap:not(.active) .trend-bar { opacity: 0.35; }
+
+/* Detail cards */
+.details-wrap {
+  max-width: 900px;
+  margin: 20px auto 40px;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detail-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  overflow: hidden;
+}
+
+.detail-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.detail-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.cat-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+}
+
+.detail-score-badge {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 50px;
+}
+
+/* Sub-scores */
+.sub-scores {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.sub-score-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sub-score-label {
+  font-size: 0.75rem;
+  color: var(--text2);
+  text-transform: capitalize;
+}
+
+.sub-score-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sub-score-bar-bg {
+  flex: 1;
+  height: 4px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.sub-score-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s cubic-bezier(.23,1,.32,1);
+}
+
+.sub-score-val {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  min-width: 28px;
+  text-align: right;
+}
+
+/* Stats grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.stat-box {
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-box-label {
+  font-size: 0.7rem;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stat-box-value {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.stat-box-unit {
+  font-size: 0.75rem;
+  color: var(--text2);
+  margin-top: 2px;
+}
+
+/* Activity bars */
+.activity-breakdown {
+  margin-top: 16px;
+}
+
+.activity-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.activity-bar-label {
+  font-size: 0.75rem;
+  color: var(--text2);
+  width: 80px;
+  flex-shrink: 0;
+}
+
+.activity-bar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.activity-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.activity-bar-time {
+  font-size: 0.75rem;
+  color: var(--text2);
+  width: 46px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Biometrics */
+.bio-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.bio-item {
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+}
+
+.bio-item-label {
+  font-size: 0.7rem;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.bio-item-value {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.bio-item-unit {
+  font-size: 0.8rem;
+  color: var(--text2);
+  margin-top: 4px;
+}
+
+.bio-item-sub {
+  font-size: 0.75rem;
+  color: var(--text2);
+  margin-top: 4px;
+}
+
+/* No data */
+.no-data {
+  color: var(--text3);
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 20px;
+}
+
+/* Divider */
+.section-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 16px 0;
+}
+
+/* Spinner */
+.spinner {
+  width: 40px; height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--readiness);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 60px auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Responsive */
+@media (max-width: 600px) {
+  .score-section { grid-template-columns: 1fr; }
+  .sub-scores { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .bio-grid { grid-template-columns: 1fr; }
+  .dash-header { padding: 20px 16px 0; }
+  .date-nav-wrap { padding: 0 16px; }
+  .score-section { padding: 0 16px; }
+  .details-wrap { padding: 0 16px; }
+  .file-list { grid-template-columns: 1fr; }
+}
+
+/* Fade in animation */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-up {
+  animation: fadeUp 0.4s ease forwards;
+}
+
+.stagger-1 { animation-delay: 0.05s; opacity: 0; }
+.stagger-2 { animation-delay: 0.1s; opacity: 0; }
+.stagger-3 { animation-delay: 0.15s; opacity: 0; }
+.stagger-4 { animation-delay: 0.2s; opacity: 0; }
+.stagger-5 { animation-delay: 0.25s; opacity: 0; }
+</style>
+</head>
+<body>
+
+<!-- UPLOAD SCREEN -->
+<div id="upload-screen">
+  <div class="upload-logo">
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+      <circle cx="40" cy="40" r="36" stroke="rgba(61,255,196,0.2)" stroke-width="8"/>
+      <circle cx="40" cy="40" r="36" stroke="url(#ring-grad)" stroke-width="8"
+              stroke-dasharray="226" stroke-dashoffset="56" stroke-linecap="round"
+              transform="rotate(-90 40 40)"/>
+      <defs>
+        <linearGradient id="ring-grad" x1="0" y1="0" x2="80" y2="80" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#3dffc4"/>
+          <stop offset="100%" stop-color="#4db8ff"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  </div>
+  <h1 class="upload-title">yOura Insights</h1>
+  <p class="upload-subtitle">Upload your exported Oura Ring CSV files to view your personal health dashboard</p>
+
+  <div class="upload-zone" id="drop-zone">
+    <input type="file" id="file-input" multiple accept=".csv">
+    <div class="upload-icon">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242M12 12v9"/>
+        <path d="m16 16-4-4-4 4"/>
+      </svg>
+    </div>
+    <h3>Drop your CSV files here</h3>
+    <p>or click to browse — select all 11 exported files at once</p>
+
+    <div class="file-list" id="file-list">
+      <div class="file-item" id="fi-dailyactivity"><span class="dot"></span>dailyactivity.csv</div>
+      <div class="file-item" id="fi-dailyreadiness"><span class="dot"></span>dailyreadiness.csv</div>
+      <div class="file-item" id="fi-dailysleep"><span class="dot"></span>dailysleep.csv</div>
+      <div class="file-item" id="fi-dailyspo2"><span class="dot"></span>dailyspo2.csv</div>
+      <div class="file-item" id="fi-heartrate"><span class="dot"></span>heartrate.csv</div>
+      <div class="file-item" id="fi-temperature"><span class="dot"></span>temperature.csv</div>
+      <div class="file-item" id="fi-sleeptime"><span class="dot"></span>sleeptime.csv</div>
+      <div class="file-item" id="fi-dailystress"><span class="dot"></span>dailystress.csv</div>
+      <div class="file-item" id="fi-dailyresilience"><span class="dot"></span>dailyresilience.csv</div>
+      <div class="file-item" id="fi-daytimestress"><span class="dot"></span>daytimestress.csv</div>
+      <div class="file-item" id="fi-dailycardiovascularage"><span class="dot"></span>dailycardiovascularage.csv</div>
+    </div>
+  </div>
+
+  <button class="btn-primary" id="generate-btn" onclick="generateDashboard()">Generate Dashboard</button>
+  <p class="upload-note">Your data never leaves your browser — all processing is done locally.</p>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div class="dash-header fade-up stagger-1">
+    <div class="dash-logo">
+      <svg width="22" height="22" viewBox="0 0 80 80" fill="none">
+        <circle cx="40" cy="40" r="36" stroke="rgba(61,255,196,0.25)" stroke-width="9"/>
+        <circle cx="40" cy="40" r="36" stroke="#3dffc4" stroke-width="9"
+                stroke-dasharray="226" stroke-dashoffset="56" stroke-linecap="round"
+                transform="rotate(-90 40 40)"/>
+      </svg>
+      <span>yOura</span> Insights
+    </div>
+    <div class="dash-date-full" id="dash-date-full"></div>
+  </div>
+
+  <div class="date-nav-wrap fade-up stagger-2">
+    <div class="date-nav" id="date-nav"></div>
+  </div>
+
+  <div class="score-section fade-up stagger-3" id="score-section"></div>
+
+  <div class="details-wrap fade-up stagger-4" id="details-wrap"></div>
+</div>
+
+<script>
+// ── GLOBAL STATE ──
+const appData = { activity:{}, readiness:{}, sleep:{}, spo2:{}, heartrate:{}, temperature:{}, sleeptime:{}, stress:{}, resilience:{}, daytimestress:{}, cardiovascularage:{} };
+let dateWindow = [];
+let selectedDate = '';
+const loadedFiles = {};
+
+// ── CSV PARSER ──
+function parseCSVLine(line) {
+  const result = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+      else { inQ = !inQ; }
+    } else if (ch === ';' && !inQ) {
+      result.push(cur);
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headers = parseCSVLine(lines[0]);
+  return lines.slice(1).filter(l => l.trim()).map(line => {
+    const vals = parseCSVLine(line);
+    const obj = {};
+    headers.forEach((h, i) => {
+      const v = (vals[i] !== undefined) ? vals[i] : '';
+      if (v.startsWith('{') || v.startsWith('[')) {
+        try { obj[h] = JSON.parse(v); } catch { obj[h] = v; }
+      } else {
+        obj[h] = v;
+      }
+    });
+    return obj;
+  });
+}
+
+function dateKey(isoStr) {
+  return isoStr ? isoStr.substring(0, 10) : '';
+}
+
+// ── FILE HANDLING ──
+const FILE_MAP = {
+  'dailyactivity': 'activity',
+  'dailyreadiness': 'readiness',
+  'dailysleep': 'sleep',
+  'dailyspo2': 'spo2',
+  'heartrate': 'heartrate',
+  'temperature': 'temperature',
+  'sleeptime': 'sleeptime',
+  'dailystress': 'stress',
+  'dailyresilience': 'resilience',
+  'daytimestress': 'daytimestress',
+  'dailycardiovascularage': 'cardiovascularage'
+};
+
+document.getElementById('file-input').addEventListener('change', function(e) {
+  handleFiles(Array.from(e.target.files));
+});
+
+const dropZone = document.getElementById('drop-zone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  handleFiles(Array.from(e.dataTransfer.files));
+});
+
+async function handleFiles(files) {
+  for (const file of files) {
+    const baseName = file.name.replace('.csv', '').replace(/\s/g,'').toLowerCase();
+    const key = Object.keys(FILE_MAP).find(k => baseName.includes(k));
+    if (!key) continue;
+    const text = await file.text();
+    const rows = parseCSV(text);
+    const dataKey = FILE_MAP[key];
+
+    // Group by date
+    const grouped = {};
+    for (const row of rows) {
+      const d = dateKey(row.day || row.timestamp || '');
+      if (!d) continue;
+      if (!grouped[d]) grouped[d] = [];
+      grouped[d].push(row);
+    }
+    appData[dataKey] = grouped;
+    loadedFiles[key] = true;
+    document.getElementById('fi-' + key)?.classList.add('loaded');
+  }
+
+  const loadedCount = Object.keys(loadedFiles).length;
+  const btn = document.getElementById('generate-btn');
+  if (loadedCount >= 1) btn.classList.add('ready');
+}
+
+// ── GENERATE DASHBOARD ──
+function generateDashboard() {
+  // Find all dates from activity, readiness, sleep
+  const allDates = new Set();
+  ['activity','readiness','sleep','spo2','stress','resilience','cardiovascularage'].forEach(k => {
+    Object.keys(appData[k]).forEach(d => allDates.add(d));
+  });
+
+  const sorted = Array.from(allDates).sort();
+  if (sorted.length === 0) { alert('No valid date data found. Please check your CSV files.'); return; }
+
+  const mostRecent = sorted[sorted.length - 1];
+  const idx = sorted.indexOf(mostRecent);
+  const startIdx = Math.max(0, idx - 6);
+  dateWindow = sorted.slice(startIdx, idx + 1);
+  // Pad to 7 if we have fewer
+  selectedDate = mostRecent;
+
+  document.getElementById('upload-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+
+  renderAll();
+}
+
+// ── RENDER ALL ──
+function renderAll() {
+  renderDateNav();
+  renderScoreSection();
+  renderDetails();
+  updateDateFull();
+}
+
+function updateDateFull() {
+  const d = new Date(selectedDate + 'T12:00:00');
+  document.getElementById('dash-date-full').textContent =
+    d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+}
+
+// ── SCORE HELPERS ──
+function scoreColor(s) {
+  if (!s || s === '--') return 'rgba(255,255,255,0.3)';
+  s = Number(s);
+  if (s >= 85) return 'var(--optimal)';
+  if (s >= 70) return 'var(--good)';
+  if (s >= 60) return 'var(--fair)';
+  return 'var(--attention)';
+}
+
+function scoreLabel(s) {
+  if (!s || s === '--') return 'No Data';
+  s = Number(s);
+  if (s >= 85) return 'Optimal';
+  if (s >= 70) return 'Good';
+  if (s >= 60) return 'Fair';
+  return 'Pay Attention';
+}
+
+function fmtDuration(secs) {
+  if (!secs || secs === 0) return '0m';
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
+}
+
+function fmtLabel(str) {
+  return str.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// ── RING SVG ──
+function ringSVG(score, color, size=140) {
+  const cx = size / 2, cy = size / 2;
+  const r = size / 2 - 13;
+  const circ = 2 * Math.PI * r;
+  const fill = score ? Math.min(100, Math.max(0, Number(score))) / 100 : 0;
+  const offset = circ * (1 - fill);
+  const s = score || '--';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="10"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="10"
+      stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}"
+      stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"
+      style="transition: stroke-dashoffset 0.7s cubic-bezier(.23,1,.32,1)"/>
+    <text x="${cx}" y="${cy - 6}" text-anchor="middle" fill="white"
+      font-size="${s === '--' ? 22 : 30}" font-weight="800" font-family="Outfit" dominant-baseline="auto">${s}</text>
+    <text x="${cx}" y="${cy + 16}" text-anchor="middle" fill="rgba(220,220,255,0.45)"
+      font-size="11" font-family="DM Sans" dominant-baseline="auto">${scoreLabel(score)}</text>
+  </svg>`;
+}
+
+// ── DATE NAV ──
+function renderDateNav() {
+  const nav = document.getElementById('date-nav');
+  nav.innerHTML = '';
+
+  dateWindow.forEach(d => {
+    const dt = new Date(d + 'T12:00:00');
+    const dow = dt.toLocaleDateString('en-US', { weekday:'short' });
+    const day = dt.getDate();
+
+    const r = appData.readiness[d]?.[0];
+    const s = appData.sleep[d]?.[0];
+    const a = appData.activity[d]?.[0];
+
+    const dots = [
+      { v: r?.score, c: 'var(--readiness)' },
+      { v: s?.score, c: 'var(--sleep)' },
+      { v: a?.score, c: 'var(--activity)' }
+    ];
+
+    const pill = document.createElement('div');
+    pill.className = 'date-pill' + (d === selectedDate ? ' active' : '');
+    pill.innerHTML = `
+      <span class="pill-dow">${dow}</span>
+      <span class="pill-day">${day}</span>
+      <div class="pill-dots">
+        ${dots.map(dot => `<div class="pill-dot" style="background:${dot.v ? dot.c : 'rgba(255,255,255,0.1)'}"></div>`).join('')}
+      </div>`;
+    pill.addEventListener('click', () => selectDate(d));
+    nav.appendChild(pill);
+  });
+}
+
+function selectDate(d) {
+  selectedDate = d;
+  renderDateNav();
+  renderScoreSection();
+  renderDetails();
+  updateDateFull();
+}
+
+// ── SCORE SECTION ──
+function renderScoreSection() {
+  const sec = document.getElementById('score-section');
+  const r = appData.readiness[selectedDate]?.[0];
+  const s = appData.sleep[selectedDate]?.[0];
+  const a = appData.activity[selectedDate]?.[0];
+
+  sec.innerHTML = [
+    { label:'Readiness', data:r, cat:'readiness', color:'var(--readiness)' },
+    { label:'Sleep', data:s, cat:'sleep', color:'var(--sleep)' },
+    { label:'Activity', data:a, cat:'activity', color:'var(--activity)' }
+  ].map(item => {
+    const score = item.data?.score || null;
+    const trendBars = dateWindow.map(d => {
+      const rec = appData[item.cat === 'readiness' ? 'readiness' : item.cat === 'sleep' ? 'sleep' : 'activity'][d]?.[0];
+      const sc = rec?.score ? Number(rec.score) : 0;
+      const h = sc ? Math.max(8, Math.round(sc * 0.32)) : 4;
+      const c = sc ? scoreColor(sc) : 'rgba(255,255,255,0.1)';
+      return `<div class="trend-bar-wrap ${d === selectedDate ? 'active' : ''}" onclick="selectDate('${d}')">
+        <div class="trend-bar" style="height:${h}px;background:${c}"></div>
+      </div>`;
+    }).join('');
+
+    return `<div class="score-card ${item.cat}">
+      <div class="score-card-label">${item.label}</div>
+      <div class="ring-wrap">${ringSVG(score, item.color, 130)}</div>
+      <div class="trend-bars">${trendBars}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── DETAILS ──
+function renderDetails() {
+  const wrap = document.getElementById('details-wrap');
+  wrap.innerHTML = renderReadinessCard() + renderSleepCard() + renderActivityCard() + renderStressResilienceCard() + renderCardioCard() + renderBioCard();
+}
+
+function subScoreBar(label, val, color) {
+  const v = val !== null && val !== undefined ? Number(val) : null;
+  const displayVal = v !== null ? v : '--';
+  const width = v !== null ? v : 0;
+  const c = v !== null ? color : 'rgba(255,255,255,0.2)';
+  return `<div class="sub-score-item">
+    <div class="sub-score-label">${fmtLabel(label)}</div>
+    <div class="sub-score-bar-wrap">
+      <div class="sub-score-bar-bg">
+        <div class="sub-score-bar-fill" style="width:${width}%;background:${c}"></div>
+      </div>
+      <div class="sub-score-val" style="color:${v !== null ? scoreColor(v) : 'var(--text3)'}">${displayVal}</div>
+    </div>
+  </div>`;
+}
+
+function scoreBadge(score, color) {
+  const s = score || '--';
+  const bg = score ? scoreColor(score) + '22' : 'rgba(255,255,255,0.06)';
+  const col = score ? scoreColor(score) : 'var(--text3)';
+  return `<div class="detail-score-badge" style="background:${bg};color:${col}">${s} · ${scoreLabel(score)}</div>`;
+}
+
+// READINESS
+function renderReadinessCard() {
+  const r = appData.readiness[selectedDate]?.[0];
+  const contrib = r?.contributors || {};
+  const keys = ['hrv_balance','resting_heart_rate','recovery_index','body_temperature','previous_night','previous_day_activity','sleep_balance','activity_balance','sleep_regularity'];
+  const available = keys.filter(k => contrib[k] !== null && contrib[k] !== undefined);
+
+  const bars = available.length > 0
+    ? `<div class="sub-scores">${available.map(k => subScoreBar(k, contrib[k], 'var(--readiness)')).join('')}</div>`
+    : `<div class="no-data">No readiness data for this date</div>`;
+
+  const tempDev = r?.temperature_deviation;
+  const tempStr = tempDev !== undefined && tempDev !== '' ? (Number(tempDev) > 0 ? '+' : '') + Number(tempDev).toFixed(2) + '°C' : '--';
+
+  return `<div class="detail-card">
+    <div class="detail-card-header">
+      <div class="detail-card-title">
+        <div class="cat-dot" style="background:var(--readiness)"></div>
+        Readiness
+      </div>
+      ${scoreBadge(r?.score, 'var(--readiness)')}
+    </div>
+    ${bars}
+    ${tempDev !== undefined && tempDev !== '' ? `
+    <div class="section-divider"></div>
+    <div class="stats-grid" style="grid-template-columns:1fr 1fr">
+      <div class="stat-box">
+        <div class="stat-box-label">Temp Deviation</div>
+        <div class="stat-box-value" style="font-size:1.1rem;color:${Number(tempDev) > 0.5 ? 'var(--attention)' : Number(tempDev) < -0.5 ? 'var(--good)' : 'var(--optimal)'}">${tempStr}</div>
+        <div class="stat-box-unit">from baseline</div>
+      </div>
+    </div>` : ''}
+  </div>`;
+}
+
+// SLEEP
+function renderSleepCard() {
+  const s = appData.sleep[selectedDate]?.[0];
+  const contrib = s?.contributors || {};
+  const st = appData.sleeptime[selectedDate]?.[0];
+  const keys = ['deep_sleep','rem_sleep','total_sleep','efficiency','restfulness','latency','timing'];
+  const available = keys.filter(k => contrib[k] !== null && contrib[k] !== undefined);
+
+  const bars = available.length > 0
+    ? `<div class="sub-scores">${available.map(k => subScoreBar(k, contrib[k], 'var(--sleep)')).join('')}</div>`
+    : `<div class="no-data">No sleep data for this date</div>`;
+
+  let bedtimeHtml = '';
+  if (st?.optimal_bedtime) {
+    const ob = st.optimal_bedtime;
+    const tz = ob.day_tz || 0;
+    const midnightMs = new Date(selectedDate + 'T00:00:00Z').getTime() - tz * 1000;
+    const startMs = midnightMs + (ob.start_offset || 0) * 1000;
+    const endMs = midnightMs + (ob.end_offset || 0) * 1000;
+    const fmtTime = ms => {
+      const d = new Date(ms);
+      return d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
+    };
+    bedtimeHtml = `
+    <div class="section-divider"></div>
+    <div class="stats-grid" style="grid-template-columns:1fr 1fr">
+      <div class="stat-box">
+        <div class="stat-box-label">Optimal Bedtime Start</div>
+        <div class="stat-box-value" style="font-size:1rem;color:var(--sleep)">${fmtTime(startMs)}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-box-label">Optimal Bedtime End</div>
+        <div class="stat-box-value" style="font-size:1rem;color:var(--sleep)">${fmtTime(endMs)}</div>
+      </div>
+    </div>`;
+  }
+
+  return `<div class="detail-card">
+    <div class="detail-card-header">
+      <div class="detail-card-title">
+        <div class="cat-dot" style="background:var(--sleep)"></div>
+        Sleep
+      </div>
+      ${scoreBadge(s?.score, 'var(--sleep)')}
+    </div>
+    ${bars}
+    ${bedtimeHtml}
+  </div>`;
+}
+
+// ACTIVITY
+function renderActivityCard() {
+  const a = appData.activity[selectedDate]?.[0];
+  const contrib = a?.contributors || {};
+  const keys = ['meet_daily_targets','move_every_hour','recovery_time','stay_active','training_frequency','training_volume'];
+  const available = keys.filter(k => contrib[k] !== null && contrib[k] !== undefined);
+
+  const steps = a?.steps ? Number(a.steps).toLocaleString() : '--';
+  const activeCal = a?.active_calories || '--';
+  const totalCal = a?.total_calories || '--';
+  const equivDist = a?.equivalent_walking_distance ? (Number(a.equivalent_walking_distance) / 1609.344).toFixed(2) : '--';
+
+  const highT = Number(a?.high_activity_time || 0);
+  const medT = Number(a?.medium_activity_time || 0);
+  const lowT = Number(a?.low_activity_time || 0);
+  const sedT = Number(a?.sedentary_time || 0);
+  const totalT = highT + medT + lowT + sedT || 1;
+
+  const actBars = a ? `
+  <div class="activity-breakdown">
+    ${[
+      { label:'Vigorous', t:highT, c:'#ff5c5c' },
+      { label:'Moderate', t:medT, c:'var(--activity)' },
+      { label:'Light', t:lowT, c:'var(--fair)' },
+      { label:'Sedentary', t:sedT, c:'rgba(255,255,255,0.2)' }
+    ].map(row => `
+    <div class="activity-bar-row">
+      <div class="activity-bar-label">${row.label}</div>
+      <div class="activity-bar-track">
+        <div class="activity-bar-fill" style="width:${(row.t/totalT*100).toFixed(1)}%;background:${row.c}"></div>
+      </div>
+      <div class="activity-bar-time">${fmtDuration(row.t)}</div>
+    </div>`).join('')}
+  </div>` : '';
+
+  const bars = available.length > 0
+    ? `<div class="sub-scores">${available.map(k => subScoreBar(k, contrib[k], 'var(--activity)')).join('')}</div>`
+    : `<div class="no-data">No activity data for this date</div>`;
+
+  const statsHtml = a ? `
+  <div class="section-divider"></div>
+  <div class="stats-grid">
+    <div class="stat-box">
+      <div class="stat-box-label">Steps</div>
+      <div class="stat-box-value" style="color:var(--activity)">${steps}</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-box-label">Active Cal</div>
+      <div class="stat-box-value">${activeCal}</div>
+      <div class="stat-box-unit">kcal</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-box-label">Total Cal</div>
+      <div class="stat-box-value">${totalCal}</div>
+      <div class="stat-box-unit">kcal</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-box-label">Equiv. Walk</div>
+      <div class="stat-box-value">${equivDist}</div>
+      <div class="stat-box-unit">mi</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-box-label">Inactivity</div>
+      <div class="stat-box-value">${a.inactivity_alerts || '0'}</div>
+      <div class="stat-box-unit">alerts</div>
+    </div>
+  </div>` : '';
+
+  return `<div class="detail-card">
+    <div class="detail-card-header">
+      <div class="detail-card-title">
+        <div class="cat-dot" style="background:var(--activity)"></div>
+        Activity
+      </div>
+      ${scoreBadge(a?.score, 'var(--activity)')}
+    </div>
+    ${bars}
+    ${statsHtml}
+    ${actBars}
+  </div>`;
+}
+
+// STRESS & RESILIENCE
+function renderStressResilienceCard() {
+  const st = appData.stress[selectedDate]?.[0];
+  const res = appData.resilience[selectedDate]?.[0];
+
+  // Daytime stress: aggregate stress/recovery values for this date
+  const dtRecs = appData.daytimestress[selectedDate] || [];
+  const stressVals = dtRecs.map(r => Number(r.stress_value)).filter(v => !isNaN(v) && v > 0);
+  const recovVals = dtRecs.map(r => Number(r.recovery_value)).filter(v => !isNaN(v) && v > 0);
+  const avgStress = stressVals.length ? Math.round(stressVals.reduce((a,b)=>a+b,0)/stressVals.length) : null;
+  const avgRecov = recovVals.length ? Math.round(recovVals.reduce((a,b)=>a+b,0)/recovVals.length) : null;
+
+  if (!st && !res && !avgStress) {
+    return `<div class="detail-card">
+      <div class="detail-card-header">
+        <div class="detail-card-title"><div class="cat-dot" style="background:var(--stress)"></div>Stress &amp; Resilience</div>
+      </div>
+      <div class="no-data">No stress or resilience data for this date</div>
+    </div>`;
+  }
+
+  // Resilience level display
+  const levelColors = { exceptional:'var(--optimal)', strong:'var(--good)', solid:'var(--fair)', adequate:'#ff9f43', limited:'var(--attention)' };
+  const levelLabel = res?.level ? res.level.charAt(0).toUpperCase() + res.level.slice(1) : null;
+  const levelColor = res?.level ? (levelColors[res.level] || 'var(--text2)') : 'var(--text2)';
+  const resContrib = res?.contributors || {};
+
+  // Stress time bars
+  const stressHigh = st?.stress_high ? Number(st.stress_high) : 0;
+  const recovHigh = st?.recovery_high ? Number(st.recovery_high) : 0;
+  const totalTime = stressHigh + recovHigh || 1;
+  const daySummary = st?.day_summary || null;
+  const summaryColors = { normal:'var(--optimal)', stressful:'var(--attention)', restorative:'var(--good)', balanced:'var(--fair)' };
+  const summaryColor = daySummary ? (summaryColors[daySummary] || 'var(--text2)') : 'var(--text2)';
+
+  return `<div class="detail-card">
+    <div class="detail-card-header">
+      <div class="detail-card-title">
+        <div class="cat-dot" style="background:var(--stress)"></div>
+        Stress &amp; Resilience
+      </div>
+      ${daySummary ? `<div class="detail-score-badge" style="background:${summaryColor}22;color:${summaryColor}">${daySummary.charAt(0).toUpperCase()+daySummary.slice(1)}</div>` : ''}
+    </div>
+
+    ${(stressHigh > 0 || recovHigh > 0) ? `
+    <div style="margin-bottom:16px">
+      <div class="activity-bar-row">
+        <div class="activity-bar-label">Stress</div>
+        <div class="activity-bar-track">
+          <div class="activity-bar-fill" style="width:${(stressHigh/totalTime*100).toFixed(1)}%;background:var(--stress)"></div>
+        </div>
+        <div class="activity-bar-time">${fmtDuration(stressHigh)}</div>
+      </div>
+      <div class="activity-bar-row">
+        <div class="activity-bar-label">Recovery</div>
+        <div class="activity-bar-track">
+          <div class="activity-bar-fill" style="width:${(recovHigh/totalTime*100).toFixed(1)}%;background:var(--optimal)"></div>
+        </div>
+        <div class="activity-bar-time">${fmtDuration(recovHigh)}</div>
+      </div>
+    </div>` : ''}
+
+    ${(avgStress !== null || avgRecov !== null) ? `
+    <div class="stats-grid" style="grid-template-columns:1fr 1fr;margin-bottom:${res ? '16px' : '0'}">
+      ${avgStress !== null ? `<div class="stat-box">
+        <div class="stat-box-label">Avg Stress</div>
+        <div class="stat-box-value" style="color:var(--stress)">${avgStress}</div>
+        <div class="stat-box-unit">${stressVals.length} readings</div>
+      </div>` : ''}
+      ${avgRecov !== null ? `<div class="stat-box">
+        <div class="stat-box-label">Avg Recovery</div>
+        <div class="stat-box-value" style="color:var(--optimal)">${avgRecov}</div>
+        <div class="stat-box-unit">${recovVals.length} readings</div>
+      </div>` : ''}
+    </div>` : ''}
+
+    ${res ? `
+    <div class="section-divider"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <span style="font-size:0.78rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em">Resilience</span>
+      ${levelLabel ? `<span style="font-family:Outfit,sans-serif;font-weight:700;font-size:0.9rem;color:${levelColor}">${levelLabel}</span>` : ''}
+    </div>
+    <div class="sub-scores">
+      ${resContrib.daytime_recovery !== undefined ? subScoreBar('daytime_recovery', Math.round(resContrib.daytime_recovery), 'var(--good)') : ''}
+      ${resContrib.sleep_recovery !== undefined ? subScoreBar('sleep_recovery', Math.round(resContrib.sleep_recovery), 'var(--sleep)') : ''}
+      ${resContrib.stress !== undefined ? subScoreBar('stress_capacity', Math.round(resContrib.stress), 'var(--stress)') : ''}
+    </div>` : ''}
+  </div>`;
+}
+
+// CARDIOVASCULAR AGE
+function renderCardioCard() {
+  const c = appData.cardiovascularage[selectedDate]?.[0];
+  if (!c) return '';
+
+  const vasAge = c.vascular_age ? Number(c.vascular_age) : null;
+  const pwv = c.pulse_wave_velocity ? Number(c.pulse_wave_velocity).toFixed(2) : null;
+
+  // 7-day trend for vascular age
+  const trendItems = dateWindow.map(d => {
+    const rec = appData.cardiovascularage[d]?.[0];
+    return rec ? Number(rec.vascular_age) : null;
+  }).filter(v => v !== null);
+
+  const minAge = trendItems.length ? Math.min(...trendItems) : null;
+  const maxAge = trendItems.length ? Math.max(...trendItems) : null;
+
+  const trendBars = dateWindow.map(d => {
+    const rec = appData.cardiovascularage[d]?.[0];
+    const v = rec ? Number(rec.vascular_age) : null;
+    if (v === null) return `<div class="trend-bar-wrap" style="opacity:0.2"><div class="trend-bar" style="height:4px;background:var(--cardio);border-radius:3px"></div></div>`;
+    const range = (maxAge - minAge) || 1;
+    const h = Math.max(6, Math.round(((v - minAge) / range) * 26) + 6);
+    return `<div class="trend-bar-wrap ${d === selectedDate ? 'active' : ''}">
+      <div class="trend-bar" style="height:${h}px;background:var(--cardio);border-radius:3px 3px 0 0"></div>
+    </div>`;
+  }).join('');
+
+  return `<div class="detail-card">
+    <div class="detail-card-header">
+      <div class="detail-card-title">
+        <div class="cat-dot" style="background:var(--cardio)"></div>
+        Cardiovascular Health
+      </div>
+    </div>
+    <div class="stats-grid" style="grid-template-columns:1fr 1fr;margin-bottom:16px">
+      ${vasAge !== null ? `<div class="stat-box">
+        <div class="stat-box-label">Vascular Age</div>
+        <div class="stat-box-value" style="color:var(--cardio)">${vasAge}</div>
+        <div class="stat-box-unit">years</div>
+      </div>` : ''}
+      ${pwv !== null ? `<div class="stat-box">
+        <div class="stat-box-label">Pulse Wave Velocity</div>
+        <div class="stat-box-value" style="font-size:1.1rem;color:var(--cardio)">${pwv}</div>
+        <div class="stat-box-unit">m/s</div>
+      </div>` : ''}
+    </div>
+    ${trendBars ? `
+    <div style="margin-top:8px">
+      <div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">7-Day Vascular Age Trend</div>
+      <div class="trend-bars" style="height:38px">${trendBars}</div>
+    </div>` : ''}
+  </div>`;
+}
+
+// BIOMETRICS
+function renderBioCard() {
+  const spo2Rec = appData.spo2[selectedDate]?.[0];
+  const spo2Val = spo2Rec?.spo2_percentage?.average ? Number(spo2Rec.spo2_percentage.average).toFixed(1) : null;
+  const bdi = spo2Rec?.breathing_disturbance_index;
+
+  // Heart rate for this date
+  const hrRecs = appData.heartrate[selectedDate] || [];
+  const bpms = hrRecs.map(r => Number(r.bpm)).filter(v => v > 0 && v < 250);
+  const avgBpm = bpms.length ? Math.round(bpms.reduce((a,b)=>a+b,0)/bpms.length) : null;
+  const minBpm = bpms.length ? Math.min(...bpms) : null;
+  const maxBpm = bpms.length ? Math.max(...bpms) : null;
+
+  // Temperature for this date
+  const tempRecs = appData.temperature[selectedDate] || [];
+  const temps = tempRecs.map(r => Number(r.skin_temp)).filter(v => v > 0);
+  const avgTemp = temps.length ? (temps.reduce((a,b)=>a+b,0)/temps.length).toFixed(1) : null;
+  const minTemp = temps.length ? Math.min(...temps).toFixed(1) : null;
+  const maxTemp = temps.length ? Math.max(...temps).toFixed(1) : null;
+
+  if (!spo2Val && !avgBpm && !avgTemp) {
+    return `<div class="detail-card">
+      <div class="detail-card-header">
+        <div class="detail-card-title"><div class="cat-dot" style="background:var(--good)"></div>Biometrics</div>
+      </div>
+      <div class="no-data">No biometric data available for this date</div>
+    </div>`;
+  }
+
+  return `<div class="detail-card">
+    <div class="detail-card-header">
+      <div class="detail-card-title">
+        <div class="cat-dot" style="background:var(--good)"></div>
+        Biometrics
+      </div>
+    </div>
+    <div class="bio-grid">
+      ${spo2Val ? `<div class="bio-item">
+        <div class="bio-item-label">Blood Oxygen (SpO₂)</div>
+        <div class="bio-item-value" style="color:${Number(spo2Val) >= 95 ? 'var(--optimal)' : 'var(--attention)'}">${spo2Val}<span style="font-size:0.9rem;font-weight:400">%</span></div>
+        ${bdi !== undefined ? `<div class="bio-item-sub">Breathing disturbance: ${bdi}</div>` : ''}
+      </div>` : ''}
+      ${avgBpm ? `<div class="bio-item">
+        <div class="bio-item-label">Heart Rate</div>
+        <div class="bio-item-value" style="color:var(--good)">${avgBpm}<span style="font-size:0.9rem;font-weight:400"> bpm</span></div>
+        <div class="bio-item-sub">Min ${minBpm} · Max ${maxBpm} · ${bpms.length} readings</div>
+      </div>` : ''}
+      ${avgTemp ? `<div class="bio-item">
+        <div class="bio-item-label">Skin Temperature</div>
+        <div class="bio-item-value" style="color:var(--fair)">${avgTemp}<span style="font-size:0.9rem;font-weight:400">°C</span></div>
+        <div class="bio-item-sub">Range ${minTemp}° – ${maxTemp}° · ${temps.length} readings</div>
+      </div>` : ''}
+    </div>
+  </div>`;
+}
+// ── SERVICE WORKER REGISTRATION ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.warn('SW registration failed:', err));
+  });
+}
+</script>
+</body>
+</html>
