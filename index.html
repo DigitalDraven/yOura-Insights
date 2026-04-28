@@ -706,7 +706,7 @@ body {
       </svg>
     </div>
     <h3>Drop your CSV files here</h3>
-    <p>or click to browse — select all 11 exported files at once</p>
+    <p>or click to browse — select all 12 exported files at once</p>
 
     <div class="file-list" id="file-list">
       <div class="file-item" id="fi-dailyactivity"><span class="dot"></span>dailyactivity.csv</div>
@@ -720,6 +720,7 @@ body {
       <div class="file-item" id="fi-dailyresilience"><span class="dot"></span>dailyresilience.csv</div>
       <div class="file-item" id="fi-daytimestress"><span class="dot"></span>daytimestress.csv</div>
       <div class="file-item" id="fi-dailycardiovascularage"><span class="dot"></span>dailycardiovascularage.csv</div>
+      <div class="file-item" id="fi-sleepmodel"><span class="dot"></span>sleepmodel.csv</div>
     </div>
   </div>
 
@@ -753,7 +754,7 @@ body {
 
 <script>
 // ── GLOBAL STATE ──
-const appData = { activity:{}, readiness:{}, sleep:{}, spo2:{}, heartrate:{}, temperature:{}, sleeptime:{}, stress:{}, resilience:{}, daytimestress:{}, cardiovascularage:{} };
+const appData = { activity:{}, readiness:{}, sleep:{}, spo2:{}, heartrate:{}, temperature:{}, sleeptime:{}, stress:{}, resilience:{}, daytimestress:{}, cardiovascularage:{}, sleepmodel:{} };
 let dateWindow = [];
 let selectedDate = '';
 const loadedFiles = {};
@@ -814,7 +815,8 @@ const FILE_MAP = {
   'dailystress': 'stress',
   'dailyresilience': 'resilience',
   'daytimestress': 'daytimestress',
-  'dailycardiovascularage': 'cardiovascularage'
+  'dailycardiovascularage': 'cardiovascularage',
+  'sleepmodel': 'sleepmodel'
 };
 
 document.getElementById('file-input').addEventListener('change', function(e) {
@@ -1089,35 +1091,196 @@ function renderSleepCard() {
   const s = appData.sleep[selectedDate]?.[0];
   const contrib = s?.contributors || {};
   const st = appData.sleeptime[selectedDate]?.[0];
+
+  // sleepmodel — pick the 'long_sleep' record for the day, fall back to first
+  const smAll = appData.sleepmodel[selectedDate] || [];
+  const sm = smAll.find(r => r.type === 'long_sleep') || smAll[0] || null;
+
   const keys = ['deep_sleep','rem_sleep','total_sleep','efficiency','restfulness','latency','timing'];
   const available = keys.filter(k => contrib[k] !== null && contrib[k] !== undefined);
-
   const bars = available.length > 0
     ? `<div class="sub-scores">${available.map(k => subScoreBar(k, contrib[k], 'var(--sleep)')).join('')}</div>`
-    : `<div class="no-data">No sleep data for this date</div>`;
+    : `<div class="no-data">No sleep score data for this date</div>`;
 
+  // ── SLEEP STAGE BREAKDOWN from sleepmodel ──
+  let stagesHtml = '';
+  if (sm) {
+    const deep  = Number(sm.deep_sleep_duration  || 0);
+    const rem   = Number(sm.rem_sleep_duration   || 0);
+    const light = Number(sm.light_sleep_duration || 0);
+    const awake = Number(sm.awake_time           || 0);
+    const tib   = Number(sm.time_in_bed          || 0) || (deep + rem + light + awake);
+    const total = deep + rem + light;
+
+    const fmtT = ms => {
+      const d = new Date(ms);
+      return d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
+    };
+    const bedStart = sm.bedtime_start ? fmtT(new Date(sm.bedtime_start)) : '--';
+    const bedEnd   = sm.bedtime_end   ? fmtT(new Date(sm.bedtime_end))   : '--';
+    const latSecs  = Number(sm.latency || 0);
+
+    // Stage colours
+    const DEEP_C  = '#4a7fff';
+    const REM_C   = '#a48bff';
+    const LIGHT_C = '#5ba9ff';
+    const AWAKE_C = 'rgba(255,255,255,0.15)';
+
+    // Donut SVG
+    function donutArc(cx, cy, r, startPct, pct, color) {
+      if (pct <= 0) return '';
+      const tau = 2 * Math.PI;
+      const s = startPct * tau - Math.PI / 2;
+      const e = (startPct + pct) * tau - Math.PI / 2;
+      const x1 = cx + r * Math.cos(s), y1 = cy + r * Math.sin(s);
+      const x2 = cx + r * Math.cos(e), y2 = cy + r * Math.sin(e);
+      const large = pct > 0.5 ? 1 : 0;
+      return `<path d="M${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)}" fill="none" stroke="${color}" stroke-width="18" stroke-linecap="round"/>`;
+    }
+
+    const tot4 = deep + rem + light + awake || 1;
+    const deepP  = deep  / tot4;
+    const remP   = rem   / tot4;
+    const lightP = light / tot4;
+    const awakeP = awake / tot4;
+    let cursor = 0;
+    const gap = 0.008;
+    const donutSVG = `<svg width="140" height="140" viewBox="0 0 140 140">
+      <circle cx="70" cy="70" r="52" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="18"/>
+      ${donutArc(70,70,52, cursor, Math.max(0,deepP-gap),  DEEP_C)}
+      ${(cursor+=deepP,  donutArc(70,70,52, cursor, Math.max(0,remP-gap),   REM_C))}
+      ${(cursor+=remP,   donutArc(70,70,52, cursor, Math.max(0,lightP-gap), LIGHT_C))}
+      ${(cursor+=lightP, donutArc(70,70,52, cursor, Math.max(0,awakeP-gap), AWAKE_C))}
+      <text x="70" y="64" text-anchor="middle" fill="white" font-size="18" font-weight="800" font-family="Outfit">${fmtDuration(total)}</text>
+      <text x="70" y="80" text-anchor="middle" fill="rgba(220,220,255,0.45)" font-size="10" font-family="DM Sans">asleep</text>
+    </svg>`;
+
+    // Stage legend rows
+    const stageRows = [
+      { label:'Deep',  dur:deep,  color:DEEP_C,  pct:total?deep/total:0 },
+      { label:'REM',   dur:rem,   color:REM_C,   pct:total?rem/total:0  },
+      { label:'Light', dur:light, color:LIGHT_C, pct:total?light/total:0},
+      { label:'Awake', dur:awake, color:AWAKE_C, pct:tib?awake/tib:0   },
+    ];
+
+    const legendHtml = stageRows.map(row => `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div style="width:10px;height:10px;border-radius:50%;background:${row.color};flex-shrink:0"></div>
+        <div style="flex:1;font-size:0.78rem;color:var(--text2)">${row.label}</div>
+        <div style="font-family:Outfit,sans-serif;font-weight:600;font-size:0.82rem">${fmtDuration(row.dur)}</div>
+        <div style="font-size:0.75rem;color:var(--text3);width:36px;text-align:right">${(row.pct*100).toFixed(0)}%</div>
+      </div>`).join('');
+
+    // ── HYPNOGRAM ──
+    let hypnoHtml = '';
+    const phaseStr = sm.sleep_phase_5_min || sm.sleep_phase_30_sec || '';
+    if (phaseStr && phaseStr.length > 4) {
+      // 1=awake,2=light,3=REM,4=deep  (Oura encoding)
+      const phases = phaseStr.split('').map(Number).filter(n => n >= 1 && n <= 4);
+      const stageY = { 1: 8, 2: 28, 3: 48, 4: 68 }; // y-positions top=awake bottom=deep
+      const stageC = { 1: AWAKE_C, 2: LIGHT_C, 3: REM_C, 4: DEEP_C };
+      const W = 520, H = 90, padL = 0, padR = 0;
+      const n = phases.length;
+      const segW = (W - padL - padR) / n;
+
+      // Build filled path
+      let pathD = '';
+      let fillD = '';
+      const baseY = H;
+      phases.forEach((p, i) => {
+        const x = padL + i * segW;
+        const y = stageY[p];
+        if (i === 0) { pathD += `M${x.toFixed(1)},${y}`; fillD += `M${x.toFixed(1)},${baseY} L${x.toFixed(1)},${y}`; }
+        else { pathD += ` L${x.toFixed(1)},${y}`; fillD += ` L${x.toFixed(1)},${y}`; }
+      });
+      // Close fill path along bottom
+      const lastX = (padL + (n-1) * segW).toFixed(1);
+      fillD += ` L${lastX},${baseY} Z`;
+
+      // Coloured segment bars (simpler, more readable)
+      const bars2 = phases.map((p, i) => {
+        const x = padL + i * segW;
+        const y = stageY[p];
+        const barH = H - y;
+        return `<rect x="${x.toFixed(1)}" y="${y}" width="${(segW+0.5).toFixed(1)}" height="${barH}" fill="${stageC[p]}" opacity="0.7"/>`;
+      }).join('');
+
+      // Y axis labels
+      const yLabels = [
+        { label:'Awake', y: stageY[1]+4 },
+        { label:'Light', y: stageY[2]+4 },
+        { label:'REM',   y: stageY[3]+4 },
+        { label:'Deep',  y: stageY[4]+4 },
+      ];
+
+      hypnoHtml = `
+      <div class="section-divider"></div>
+      <div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Sleep Stages</div>
+      <div style="position:relative;width:100%;overflow:hidden;border-radius:8px">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:80px;display:block">
+          <rect width="${W}" height="${H}" fill="rgba(255,255,255,0.03)" rx="4"/>
+          ${bars2}
+        </svg>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;padding:0 2px">
+          <span style="font-size:0.65rem;color:var(--text3)">${bedStart}</span>
+          <span style="font-size:0.65rem;color:var(--text3)">${bedEnd}</span>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap">
+          ${[{l:'Awake',c:AWAKE_C},{l:'Light',c:LIGHT_C},{l:'REM',c:REM_C},{l:'Deep',c:DEEP_C}].map(x=>
+            `<div style="display:flex;align-items:center;gap:4px">
+              <div style="width:8px;height:8px;border-radius:2px;background:${x.c};opacity:0.8"></div>
+              <span style="font-size:0.68rem;color:var(--text3)">${x.l}</span>
+            </div>`).join('')}
+        </div>
+      </div>`;
+    }
+
+    // Extra biometrics from sleepmodel
+    const avgHR  = sm.average_heart_rate  ? Number(sm.average_heart_rate).toFixed(0)  : '--';
+    const avgHRV = sm.average_hrv         ? Number(sm.average_hrv).toFixed(0)          : '--';
+    const avgBr  = sm.average_breath      ? Number(sm.average_breath).toFixed(1)       : '--';
+    const loHR   = sm.lowest_heart_rate   ? Number(sm.lowest_heart_rate)               : '--';
+    const restl  = sm.restless_periods    !== undefined ? sm.restless_periods           : '--';
+    const eff    = sm.efficiency          ? Number(sm.efficiency) + '%'                 : '--';
+
+    stagesHtml = `
+    <div class="section-divider"></div>
+    <div style="display:flex;gap:16px;align-items:center;margin-bottom:16px">
+      <div style="flex-shrink:0">${donutSVG}</div>
+      <div style="flex:1">${legendHtml}
+        <div style="font-size:0.75rem;color:var(--text3);margin-top:6px">
+          ${bedStart} – ${bedEnd}
+          ${latSecs ? ` &nbsp;·&nbsp; fell asleep in ${fmtDuration(latSecs)}` : ''}
+        </div>
+      </div>
+    </div>
+    ${hypnoHtml}
+    <div class="section-divider"></div>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-box-label">Avg HR</div><div class="stat-box-value" style="color:var(--attention)">${avgHR}</div><div class="stat-box-unit">bpm</div></div>
+      <div class="stat-box"><div class="stat-box-label">Lowest HR</div><div class="stat-box-value" style="color:var(--good)">${loHR}</div><div class="stat-box-unit">bpm</div></div>
+      <div class="stat-box"><div class="stat-box-label">Avg HRV</div><div class="stat-box-value" style="color:var(--sleep)">${avgHRV}</div><div class="stat-box-unit">ms</div></div>
+      <div class="stat-box"><div class="stat-box-label">Breathing</div><div class="stat-box-value">${avgBr}</div><div class="stat-box-unit">br/min</div></div>
+      <div class="stat-box"><div class="stat-box-label">Efficiency</div><div class="stat-box-value">${eff}</div></div>
+      <div class="stat-box"><div class="stat-box-label">Restless</div><div class="stat-box-value">${restl}</div><div class="stat-box-unit">periods</div></div>
+    </div>`;
+  }
+
+  // Optimal bedtime
   let bedtimeHtml = '';
   if (st?.optimal_bedtime) {
     const ob = st.optimal_bedtime;
     const tz = ob.day_tz || 0;
     const midnightMs = new Date(selectedDate + 'T00:00:00Z').getTime() - tz * 1000;
     const startMs = midnightMs + (ob.start_offset || 0) * 1000;
-    const endMs = midnightMs + (ob.end_offset || 0) * 1000;
-    const fmtTime = ms => {
-      const d = new Date(ms);
-      return d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
-    };
+    const endMs   = midnightMs + (ob.end_offset   || 0) * 1000;
+    const fmtTime = ms => new Date(ms).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
     bedtimeHtml = `
     <div class="section-divider"></div>
+    <div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Optimal Bedtime Window</div>
     <div class="stats-grid" style="grid-template-columns:1fr 1fr">
-      <div class="stat-box">
-        <div class="stat-box-label">Optimal Bedtime Start</div>
-        <div class="stat-box-value" style="font-size:1rem;color:var(--sleep)">${fmtTime(startMs)}</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-box-label">Optimal Bedtime End</div>
-        <div class="stat-box-value" style="font-size:1rem;color:var(--sleep)">${fmtTime(endMs)}</div>
-      </div>
+      <div class="stat-box"><div class="stat-box-label">Target Start</div><div class="stat-box-value" style="font-size:1rem;color:var(--sleep)">${fmtTime(startMs)}</div></div>
+      <div class="stat-box"><div class="stat-box-label">Target End</div><div class="stat-box-value" style="font-size:1rem;color:var(--sleep)">${fmtTime(endMs)}</div></div>
     </div>`;
   }
 
@@ -1130,6 +1293,7 @@ function renderSleepCard() {
       ${scoreBadge(s?.score, 'var(--sleep)')}
     </div>
     ${bars}
+    ${stagesHtml}
     ${bedtimeHtml}
   </div>`;
 }
